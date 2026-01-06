@@ -29,18 +29,25 @@ fuzz = { runs = 10000 }
 invariant = { runs = 1000 }
 
 [rpc_endpoints]
+# Mainnets (use env vars for Alchemy/Infura)
 mainnet = "${MAINNET_RPC_URL}"
-sepolia = "${SEPOLIA_RPC_URL}"
 base = "${BASE_RPC_URL}"
-base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
 arbitrum = "${ARBITRUM_RPC_URL}"
-arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
 optimism = "${OPTIMISM_RPC_URL}"
-optimism_sepolia = "${OPTIMISM_SEPOLIA_RPC_URL}"
 polygon = "${POLYGON_RPC_URL}"
 bsc = "${BSC_RPC_URL}"
 gnosis = "${GNOSIS_RPC_URL}"
 unichain = "${UNICHAIN_RPC_URL}"
+
+# Testnets (public RPCs)
+sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
+base_sepolia = "https://sepolia.base.org"
+arbitrum_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"
+optimism_sepolia = "https://sepolia.optimism.io"
+bsc_testnet = "https://bsc-testnet-rpc.publicnode.com"
+polygon_amoy = "https://rpc-amoy.polygon.technology"
+gnosis_chiado = "https://rpc.chiadochain.net"
+unichain_sepolia = "https://sepolia.unichain.org"
 
 [etherscan]
 mainnet = { key = "${ETHERSCAN_API_KEY}" }
@@ -52,5 +59,9 @@ arbitrum_sepolia = { key = "${ARBISCAN_API_KEY}" }
 optimism = { key = "${OPTIMISM_ETHERSCAN_API_KEY}" }
 optimism_sepolia = { key = "${OPTIMISM_ETHERSCAN_API_KEY}" }
 polygon = { key = "${POLYGONSCAN_API_KEY}" }
+polygon_amoy = { key = "${POLYGONSCAN_API_KEY}" }
 bsc = { key = "${BSCSCAN_API_KEY}" }
+bsc_testnet = { key = "${BSCSCAN_API_KEY}" }
 gnosis = { key = "${GNOSISSCAN_API_KEY}" }
+gnosis_chiado = { key = "${GNOSISSCAN_API_KEY}" }
+unichain_sepolia = { key = "${ETHERSCAN_API_KEY}" }
