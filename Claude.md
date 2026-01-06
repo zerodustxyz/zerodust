@@ -4,7 +4,7 @@
 
 ### What ZeroDust Is
 
-ZeroDust is a specialized infrastructure service that solves a specific, previously unsolvable problem: **draining native gas tokens to exactly zero** when exiting a blockchain. This is achieved through EIP-7702 sponsored execution, where users sign an authorization and ZeroDust's relayer executes the drain on their behalf.
+ZeroDust is a specialized infrastructure service that solves a specific, previously unsolvable problem: **sweeping native gas tokens to exactly zero** when exiting a blockchain. This is achieved through EIP-7702 sponsored execution, where users sign an authorization and ZeroDust's relayer executes the sweep on their behalf.
 
 ### Core Architecture Mental Model
 
@@ -19,7 +19,7 @@ User signs EIP-7702 authorization
     │
     └── Relayer validates → simulates → executes → user receives funds
         │
-        └── Contract atomically: drains user → pays relayer → sends remainder
+        └── Contract atomically: sweeps user → pays relayer → sends remainder
 ```
 
 ### Critical Invariants
@@ -28,7 +28,7 @@ These properties must NEVER be violated:
 
 1. **User funds are never custodied** - All operations are atomic, single-transaction
 2. **User cannot pay more than maxRelayerCompensation** - This is signed and enforced
-3. **Drain always results in zero balance** - The entire native balance is swept
+3. **Sweep always results in zero balance** - The entire native balance is swept
 4. **Nonces are never reused** - Each authorization executes exactly once
 5. **Deadlines are enforced** - Expired authorizations are rejected
 6. **Simulation precedes execution** - No transaction submitted without successful simulation
@@ -38,7 +38,7 @@ These properties must NEVER be violated:
 1. **EIP-7702 dependency** - This only works on chains supporting EIP-7702
 2. **Sponsored execution** - User pays no gas; relayer pays and is reimbursed
 3. **Native token focus** - Only handles native gas tokens (ETH, MATIC, BNB), not ERC-20s
-4. **Sweep-all design** - No partial drains; always drains entire balance
+4. **Sweep-all design** - No partial sweeps; always sweeps entire balance
 
 ---
 
@@ -116,12 +116,12 @@ Every line of code I write must consider:
 // 3. Edge case tests (zero values, max values)
 // 4. Fuzz tests for numeric inputs
 
-function test_executeDrain_success() public { ... }
-function test_executeDrain_reverts_invalidSignature() public { ... }
-function test_executeDrain_reverts_expiredDeadline() public { ... }
-function test_executeDrain_reverts_usedNonce() public { ... }
-function test_executeDrain_reverts_insufficientBalance() public { ... }
-function testFuzz_executeDrain_compensation(uint256 compensation) public { ... }
+function test_executeSweep_success() public { ... }
+function test_executeSweep_reverts_invalidSignature() public { ... }
+function test_executeSweep_reverts_expiredDeadline() public { ... }
+function test_executeSweep_reverts_usedNonce() public { ... }
+function test_executeSweep_reverts_insufficientBalance() public { ... }
+function testFuzz_executeSweep_compensation(uint256 compensation) public { ... }
 ```
 
 ### Backend/Relayer Development
@@ -144,43 +144,43 @@ function testFuzz_executeDrain_compensation(uint256 compensation) public { ... }
 
 **Relayer Safety Policy Implementation:**
 ```typescript
-// EVERY drain execution MUST pass ALL checks
-async function executeDrain(drain: DrainRequest): Promise<DrainResult> {
+// EVERY sweep execution MUST pass ALL checks
+async function executeSweep(sweep: SweepRequest): Promise<SweepResult> {
   // 1. Signature verification
-  if (!verifySignature(drain.authorization, drain.signature)) {
+  if (!verifySignature(sweep.authorization, sweep.signature)) {
     return reject('INVALID_SIGNATURE');
   }
 
   // 2. Deadline check
-  if (Date.now() > drain.authorization.deadline * 1000) {
+  if (Date.now() > sweep.authorization.deadline * 1000) {
     return reject('EXPIRED');
   }
 
   // 3. Nonce check
-  if (await isNonceUsed(drain.authorization.user, drain.authorization.nonce)) {
+  if (await isNonceUsed(sweep.authorization.user, sweep.authorization.nonce)) {
     return reject('NONCE_USED');
   }
 
   // 4. Balance check
-  const balance = await getBalance(drain.authorization.user);
+  const balance = await getBalance(sweep.authorization.user);
   if (balance < MINIMUM_BALANCE[chainId]) {
     return reject('BALANCE_TOO_LOW');
   }
 
   // 5. Gas price check
   const gasPrice = await getGasPrice();
-  if (gasPrice > drain.authorization.maxFeePerGas) {
+  if (gasPrice > sweep.authorization.maxFeePerGas) {
     return reject('GAS_PRICE_EXCEEDED');
   }
 
   // 6. Simulation - MANDATORY
-  const simulation = await simulate(drain);
+  const simulation = await simulate(sweep);
   if (!simulation.success) {
     return reject('SIMULATION_FAILED', simulation.error);
   }
 
   // 7. Only now execute
-  return await submitTransaction(drain);
+  return await submitTransaction(sweep);
 }
 ```
 
@@ -252,7 +252,7 @@ enum ZeroDustErrorCode {
 ```typescript
 // Internal error → User-friendly message
 const ERROR_MESSAGES: Record<string, string> = {
-  'BALANCE_TOO_LOW': 'Your balance is too low to drain. Minimum required: {min}',
+  'BALANCE_TOO_LOW': 'Your balance is too low to sweep. Minimum required: {min}',
   'QUOTE_EXPIRED': 'Quote expired. Getting a fresh quote...',
   'GAS_PRICE_EXCEEDED': 'Network is busy. Please try again in a moment.',
   'SIMULATION_FAILED': 'Transaction would fail. Please try again.',
@@ -423,9 +423,9 @@ Scope: contract, backend, sdk, frontend, infra
 
 Examples:
 ```
-feat(contract): implement executeDrain function
+feat(contract): implement executeSweep function
 
-Adds the core drain functionality with signature verification,
+Adds the core sweep functionality with signature verification,
 nonce tracking, and compensation handling.
 
 Closes #123
@@ -539,7 +539,7 @@ All EIP-7702 compatible chains will be supported from launch:
 | Gnosis | 100 | xDAI | Established chain |
 
 All chains require:
-1. Bungee support for cross-chain drains
+1. Bungee support for cross-chain sweeps
 2. Reliable RPC providers
 3. Block explorer for verification
 4. Treasury funding
@@ -550,9 +550,9 @@ All chains require:
 
 ### Technical Success
 
-- Drain success rate > 99%
-- Same-chain drain latency < 30 seconds
-- Cross-chain drain latency < 5 minutes
+- Sweep success rate > 99%
+- Same-chain sweep latency < 30 seconds
+- Cross-chain sweep latency < 5 minutes
 - Zero security incidents
 - Zero lost user funds
 
@@ -566,7 +566,7 @@ All chains require:
 
 ### Business Success
 
-- Growing drain volume
+- Growing sweep volume
 - Positive user feedback
 - Wallet partner interest
 - Sustainable unit economics

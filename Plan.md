@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-ZeroDust enables users to drain their native gas token balance to exactly zero on EIP-7702 supported chains via a single signature and sponsored execution. This document outlines the complete build plan derived from the v3 specification and detailed stakeholder interview.
+ZeroDust enables users to sweep their native gas token balance to exactly zero on EIP-7702 supported chains via a single signature and sponsored execution. This document outlines the complete build plan derived from the v3 specification and detailed stakeholder interview.
 
 **Core Value Proposition:** Exit any supported chain completely without leaving gas behind for the exit transaction.
 
@@ -46,7 +46,7 @@ ZeroDust enables users to drain their native gas token balance to exactly zero o
 │         │                │                │                              │
 │         ▼                ▼                ▼                              │
 │  ┌────────────┐  ┌─────────────┐  ┌─────────────┐                       │
-│  │  SPONSOR   │  │   DRAIN     │  │   BUNGEE    │                       │
+│  │  SPONSOR   │  │   SWEEP     │  │   BUNGEE    │                       │
 │  │  WALLET    │  │  CONTRACT   │  │     API     │                       │
 │  │  (KMS)     │  │ (per chain) │  │  (bridging) │                       │
 │  └────────────┘  └─────────────┘  └─────────────┘                       │
@@ -54,7 +54,7 @@ ZeroDust enables users to drain their native gas token balance to exactly zero o
 │  ┌─────────────────────────────────────────────────────────────────┐    │
 │  │                      SUPABASE                                    │    │
 │  │  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐    │    │
-│  │  │  Drains   │  │  Quotes   │  │  Metrics  │  │   Logs    │    │    │
+│  │  │  Sweeps   │  │  Quotes   │  │  Metrics  │  │   Logs    │    │    │
 │  │  └───────────┘  └───────────┘  └───────────┘  └───────────┘    │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
 │                                                                          │
@@ -70,7 +70,7 @@ ZeroDust enables users to drain their native gas token balance to exactly zero o
 | Decision | Rationale |
 |----------|-----------|
 | Native gas token only | Reduces attack surface, ERC-20s are well-served by DEXs |
-| Single destination per drain | Simplifies contract logic and user mental model |
+| Single destination per sweep | Simplifies contract logic and user mental model |
 | No scheduling/delayed execution | Eliminates fund custody concerns entirely |
 | 1-minute quote validity | Minimizes gas price drift risk |
 | Abstracted bridge (Bungee) | Better UX than manual two-step process |
@@ -106,20 +106,20 @@ ZeroDust enables users to drain their native gas token balance to exactly zero o
 **Duration:** 2-3 weeks
 
 **Deliverables:**
-- ZeroDustDrain contract (native-only, sweep-all)
+- ZeroDustSweep contract (native-only, sweep-all)
 - Comprehensive test suite (unit + fuzz)
 - Gas optimization
 - Deployment scripts (CREATE2 deterministic)
 - Testnet deployment
 
-**Critical Path:** Contract must be complete before backend can execute drains.
+**Critical Path:** Contract must be complete before backend can execute sweeps.
 
 ### Phase 2: Backend/Relayer Development
 **Duration:** 3-4 weeks
 
 **Deliverables:**
-- REST API (balances, quotes, authorization, drain, status)
-- WebSocket server (real-time drain status)
+- REST API (balances, quotes, authorization, sweep, status)
+- WebSocket server (real-time sweep status)
 - Relayer service with full safety policy
 - Quote engine with dynamic pricing
 - Bungee integration
@@ -146,7 +146,7 @@ ZeroDust enables users to drain their native gas token balance to exactly zero o
 **Deliverables:**
 - zerodust.xyz website
 - Wallet connection flow
-- Drain flow UI (From/To chain selection)
+- Sweep flow UI (From/To chain selection)
 - Transaction status tracking
 - Testnet toggle
 - Mobile responsive design
@@ -187,9 +187,9 @@ ZeroDust enables users to drain their native gas token balance to exactly zero o
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-interface IZeroDustDrain {
-    struct DrainAuthorization {
-        address user;                    // User authorizing the drain
+interface IZeroDustSweep {
+    struct SweepAuthorization {
+        address user;                    // User authorizing the sweep
         address destination;             // Where to send funds
         uint256 maxRelayerCompensation;  // Maximum gas + fee cap
         uint256 deadline;                // Authorization expiry timestamp
@@ -197,15 +197,15 @@ interface IZeroDustDrain {
         bool sweepAll;                   // Always true for ZeroDust
     }
 
-    function executeDrain(
-        DrainAuthorization calldata auth,
+    function executeSweep(
+        SweepAuthorization calldata auth,
         bytes calldata signature
     ) external;
 
     function isNonceUsed(address user, uint256 nonce) external view returns (bool);
     function getCurrentNonce(address user) external view returns (uint256);
 
-    event DrainExecuted(
+    event SweepExecuted(
         address indexed user,
         address indexed destination,
         uint256 amountSent,
@@ -241,11 +241,11 @@ interface IZeroDustDrain {
 |----------|--------|------|-------------|
 | `/v1/chains` | GET | No | List supported chains |
 | `/v1/balances/{address}` | GET | No | Native balances across chains |
-| `/v1/quote` | GET | No | Get drain quote with fees |
+| `/v1/quote` | GET | No | Get sweep quote with fees |
 | `/v1/authorization` | POST | No | Create EIP-712 typed data for signing |
-| `/v1/drain` | POST | Rate-limited | Submit signed authorization |
-| `/v1/drain/{id}` | GET | No | Get drain status |
-| `wss://api.zerodust.xyz/v1/status` | WS | No | Real-time drain updates |
+| `/v1/sweep` | POST | Rate-limited | Submit signed authorization |
+| `/v1/sweep/{id}` | GET | No | Get sweep status |
+| `wss://api.zerodust.xyz/v1/status` | WS | No | Real-time sweep updates |
 
 ### 5.2 Quote Response Structure
 
@@ -273,7 +273,7 @@ interface QuoteResponse {
 
 ### 5.3 Rate Limiting
 
-| Tier | Quotes/min | Drains/hour |
+| Tier | Quotes/min | Sweeps/hour |
 |------|------------|-------------|
 | Anonymous (IP) | 30 | 10 |
 | Authenticated | 120 | 100 |
@@ -331,7 +331,7 @@ ANY CHECK FAILS → REJECT IMMEDIATELY
 ```
 User Pays = Gas Cost (at-cost) + Service Fee + Bridge Fee (if cross-chain)
 
-Service Fee = max($0.10, min($2.00, 5% of drain value))
+Service Fee = max($0.10, min($2.00, 5% of sweep value))
 ```
 
 ### 7.2 Fee Flow
@@ -381,7 +381,7 @@ All chains with EIP-7702 support will be available at launch:
 
 Each chain requires:
 1. **EIP-7702 active** - Sponsored execution support
-2. **Bungee support** - For cross-chain drains (same-chain works regardless)
+2. **Bungee support** - For cross-chain sweeps (same-chain works regardless)
 3. **Reliable RPC** - Multiple provider options
 4. **Block explorer** - For contract verification
 5. **Treasury funding** - Initial gas float
@@ -420,7 +420,7 @@ Each chain requires:
 │                         SUPABASE                                 │
 │  ┌─────────────────────┐  ┌─────────────────────┐              │
 │  │  PostgreSQL         │  │  Realtime           │              │
-│  │  - drains           │  │  - Status updates   │              │
+│  │  - sweeps           │  │  - Status updates   │              │
 │  │  - quotes           │  │                     │              │
 │  │  - metrics          │  │                     │              │
 │  └─────────────────────┘  └─────────────────────┘              │
@@ -453,7 +453,7 @@ Each chain requires:
 
 | Category | Metrics |
 |----------|---------|
-| Business | Drains/day, Revenue, Unique users, Chain distribution |
+| Business | Sweeps/day, Revenue, Unique users, Chain distribution |
 | Operational | Success rate, Latency (p50/p95/p99), Queue depth |
 | Financial | Treasury balance per chain, Gas cost vs compensation |
 | Security | Failed simulations, Rejected authorizations, Anomalies |
@@ -463,7 +463,7 @@ Each chain requires:
 | Metric | Warning | Critical |
 |--------|---------|----------|
 | Success rate | < 98% | < 95% |
-| Drain latency (same-chain) | > 15s | > 30s |
+| Sweep latency (same-chain) | > 15s | > 30s |
 | Treasury balance | < $500 | < $200 |
 | Failed simulations (1h) | > 5% | > 10% |
 
@@ -504,16 +504,16 @@ Each chain requires:
 
 | Metric | Target |
 |--------|--------|
-| Drain success rate | > 99% |
-| Same-chain drain latency | < 30 seconds |
-| Cross-chain drain latency | < 5 minutes |
+| Sweep success rate | > 99% |
+| Same-chain sweep latency | < 30 seconds |
+| Cross-chain sweep latency | < 5 minutes |
 | Uptime | > 99.9% |
 
 ### 12.2 Business KPIs (Year 1)
 
 | Metric | Month 3 | Month 6 | Month 12 |
 |--------|---------|---------|----------|
-| Total drains | 1,500 | 8,000 | 35,000 |
+| Total sweeps | 1,500 | 8,000 | 35,000 |
 | Unique users | 500 | 2,500 | 10,000 |
 | Revenue | $1,300 | $7,100 | $31,000 |
 

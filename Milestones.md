@@ -60,8 +60,8 @@ zerodust/
 ### M1.1: Core Contract Implementation
 
 **Deliverables:**
-- [ ] `ZeroDustDrain.sol` - Main drain contract
-- [ ] `IZeroDustDrain.sol` - Interface definition
+- [ ] `ZeroDustSweep.sol` - Main sweep contract
+- [ ] `IZeroDustSweep.sol` - Interface definition
 - [ ] EIP-712 typed data structure for authorization signing
 - [ ] Nonce management (sequential per-user)
 - [ ] Deadline enforcement
@@ -88,7 +88,7 @@ zerodust/
 - [ ] Unit tests for all revert conditions
 - [ ] Fuzz tests for authorization validation
 - [ ] Fuzz tests for compensation calculations
-- [ ] Integration tests simulating full drain flow
+- [ ] Integration tests simulating full sweep flow
 - [ ] Gas snapshot tests
 
 **Test Coverage Targets:**
@@ -107,7 +107,7 @@ zerodust/
 **Test Scenarios:**
 ```
 Unit Tests:
-├── executeDrain()
+├── executeSweep()
 │   ├── succeeds with valid authorization
 │   ├── reverts with invalid signature
 │   ├── reverts with expired deadline
@@ -117,7 +117,7 @@ Unit Tests:
 │   └── correctly transfers compensation to relayer
 ├── isNonceUsed()
 │   ├── returns false for unused nonce
-│   └── returns true after drain execution
+│   └── returns true after sweep execution
 └── getCurrentNonce()
     └── returns correct next nonce
 
@@ -127,9 +127,9 @@ Fuzz Tests:
 └── nonce increments correctly under all inputs
 
 Integration Tests:
-├── full same-chain drain flow
-├── multi-drain sequence (nonce progression)
-└── concurrent drain attempts (one succeeds, others fail)
+├── full same-chain sweep flow
+├── multi-sweep sequence (nonce progression)
+└── concurrent sweep attempts (one succeeds, others fail)
 ```
 
 ---
@@ -153,7 +153,7 @@ Integration Tests:
 For each chain:
 [ ] Deploy via CREATE2
 [ ] Verify on block explorer
-[ ] Test executeDrain with test wallet
+[ ] Test executeSweep with test wallet
 [ ] Record address in registry
 [ ] Confirm deterministic address matches
 ```
@@ -176,7 +176,7 @@ For each chain:
 
 **Acceptance Criteria:**
 - All testnet deployments at same deterministic address (CREATE2)
-- At least one successful drain transaction per testnet
+- At least one successful sweep transaction per testnet
 - ABI exported and documented
 
 ---
@@ -216,8 +216,8 @@ CREATE TABLE quotes (
     expires_at TIMESTAMP NOT NULL
 );
 
--- Drains (permanent record)
-CREATE TABLE drains (
+-- Sweeps (permanent record)
+CREATE TABLE sweeps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     quote_id UUID REFERENCES quotes(id),
     user_address TEXT NOT NULL,
@@ -246,7 +246,7 @@ CREATE TABLE nonces (
 CREATE TABLE metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     chain_id INTEGER NOT NULL,
-    drain_count INTEGER DEFAULT 0,
+    sweep_count INTEGER DEFAULT 0,
     total_volume NUMERIC DEFAULT 0,
     total_fees NUMERIC DEFAULT 0,
     date DATE NOT NULL,
@@ -256,8 +256,8 @@ CREATE TABLE metrics (
 -- Create indexes
 CREATE INDEX idx_quotes_user ON quotes(user_address);
 CREATE INDEX idx_quotes_expires ON quotes(expires_at);
-CREATE INDEX idx_drains_user ON drains(user_address);
-CREATE INDEX idx_drains_status ON drains(status);
+CREATE INDEX idx_sweeps_user ON sweeps(user_address);
+CREATE INDEX idx_sweeps_status ON sweeps(status);
 ```
 
 **Acceptance Criteria:**
@@ -272,10 +272,10 @@ CREATE INDEX idx_drains_status ON drains(status);
 **Deliverables:**
 - [ ] `GET /v1/chains` - List supported chains
 - [ ] `GET /v1/balances/{address}` - Multi-chain balance query
-- [ ] `GET /v1/quote` - Generate drain quote
+- [ ] `GET /v1/quote` - Generate sweep quote
 - [ ] `POST /v1/authorization` - Create EIP-712 typed data
-- [ ] `POST /v1/drain` - Submit signed authorization
-- [ ] `GET /v1/drain/{id}` - Get drain status
+- [ ] `POST /v1/sweep` - Submit signed authorization
+- [ ] `GET /v1/sweep/{id}` - Get sweep status
 - [ ] OpenAPI/Swagger documentation
 
 **Endpoint Specifications:**
@@ -305,7 +305,7 @@ interface BalancesResponse {
     balance: string;
     balanceFormatted: string;
     balanceUsd: number;
-    canDrain: boolean;
+    canSweep: boolean;
     minBalance: string;
   }[];
   totalValueUsd: number;
@@ -356,20 +356,20 @@ interface AuthorizationResponse {
   typedData: EIP712TypedData;
 }
 
-// POST /v1/drain
-interface DrainRequest {
+// POST /v1/sweep
+interface SweepRequest {
   authorization: Authorization;
   signature: string;
 }
 
-interface DrainResponse {
-  drainId: string;
+interface SweepResponse {
+  sweepId: string;
   status: 'pending';
 }
 
-// GET /v1/drain/{id}
-interface DrainStatusResponse {
-  drainId: string;
+// GET /v1/sweep/{id}
+interface SweepStatusResponse {
+  sweepId: string;
   status: 'pending' | 'simulating' | 'executing' | 'bridging' | 'completed' | 'failed';
   txHash?: string;
   bridgeTxHash?: string;
@@ -395,7 +395,7 @@ interface DrainStatusResponse {
 
 **Deliverables:**
 - [ ] Gas price fetching (per chain)
-- [ ] Gas estimation for drain transactions
+- [ ] Gas estimation for sweep transactions
 - [ ] Dynamic minimum balance calculation
 - [ ] Service fee calculation (5% with $0.10 min, $2.00 cap)
 - [ ] Bungee quote integration (for bridge fee)
@@ -445,7 +445,7 @@ User requests quote
 ### M2.4: Relayer Service
 
 **Deliverables:**
-- [ ] Queue-based architecture for drain processing
+- [ ] Queue-based architecture for sweep processing
 - [ ] Signature verification (EIP-712)
 - [ ] Preflight validation (all checks)
 - [ ] Transaction simulation
@@ -456,7 +456,7 @@ User requests quote
 
 **Relayer Flow:**
 ```
-Drain submitted
+Sweep submitted
     │
     ├── Add to processing queue
     │
@@ -538,7 +538,7 @@ if (failedSimulations1h > 100) pause('High simulation failures');
 
 **Acceptance Criteria:**
 - Circuit breakers trigger correctly
-- Paused chains reject new drains
+- Paused chains reject new sweeps
 - Alerts sent to operations
 - Manual override available
 
@@ -547,8 +547,8 @@ if (failedSimulations1h > 100) pause('High simulation failures');
 ### M2.6: WebSocket Server
 
 **Deliverables:**
-- [ ] WebSocket endpoint for drain status updates
-- [ ] Subscription management (by drainId)
+- [ ] WebSocket endpoint for sweep status updates
+- [ ] Subscription management (by sweepId)
 - [ ] Heartbeat/keepalive
 - [ ] Reconnection handling
 - [ ] Connection limits
@@ -556,22 +556,22 @@ if (failedSimulations1h > 100) pause('High simulation failures');
 **WebSocket Protocol:**
 ```typescript
 // Client subscribes
-{ type: 'subscribe', drainId: 'drain_abc123' }
+{ type: 'subscribe', sweepId: 'sweep_abc123' }
 
 // Server acknowledges
-{ type: 'subscribed', drainId: 'drain_abc123' }
+{ type: 'subscribed', sweepId: 'sweep_abc123' }
 
 // Server sends updates
 {
   type: 'status_update',
-  drainId: 'drain_abc123',
+  sweepId: 'sweep_abc123',
   status: 'executing',
   txHash: '0x...',
   updatedAt: '2026-01-06T...'
 }
 
 // Client unsubscribes
-{ type: 'unsubscribe', drainId: 'drain_abc123' }
+{ type: 'unsubscribe', sweepId: 'sweep_abc123' }
 ```
 
 **Acceptance Criteria:**
@@ -593,20 +593,20 @@ if (failedSimulations1h > 100) pause('High simulation failures');
 
 **Bungee Flow:**
 ```
-Cross-chain drain requested
+Cross-chain sweep requested
     │
     ├── Call Bungee /quote
     │   └── Get bridge fee and route
     │
     ├── Include bridge fee in total
     │
-    ├── Build drain + bridge transaction
+    ├── Build sweep + bridge transaction
     │   └── Contract sends to Bungee contract
     │
     ├── Monitor Bungee transaction
     │   └── Poll status until complete
     │
-    └── Update drain status when bridge completes
+    └── Update sweep status when bridge completes
 ```
 
 **Acceptance Criteria:**
@@ -630,8 +630,8 @@ Cross-chain drain requested
 **Metrics to Collect:**
 ```
 # Business metrics
-zerodust_drains_total{chain, status}
-zerodust_drain_volume_total{chain}
+zerodust_sweeps_total{chain, status}
+zerodust_sweep_volume_total{chain}
 zerodust_fees_total{chain}
 zerodust_unique_users{chain, period}
 
@@ -649,7 +649,7 @@ zerodust_chain_status{chain} # 1 = active, 0 = paused
 ```
 
 **Acceptance Criteria:**
-- All drain operations logged
+- All sweep operations logged
 - Metrics endpoint returns valid format
 - No PII in logs
 - Log retention configured
@@ -694,17 +694,17 @@ const quote = await zerodust.getQuote({
 // Create authorization for signing
 const { authorization, typedData } = await zerodust.createAuthorization(quote.quoteId);
 
-// Submit drain
-const drain = await zerodust.submitDrain({
+// Submit sweep
+const sweep = await zerodust.submitSweep({
   authorization,
   signature,
 });
 
-// Get drain status
-const status = await zerodust.getDrainStatus(drain.drainId);
+// Get sweep status
+const status = await zerodust.getSweepStatus(sweep.sweepId);
 
 // Subscribe to status updates
-zerodust.onDrainStatus(drain.drainId, (status) => {
+zerodust.onSweepStatus(sweep.sweepId, (status) => {
   console.log(status);
 });
 ```
@@ -724,10 +724,10 @@ zerodust.onDrainStatus(drain.drainId, (status) => {
 - [ ] `useZeroDust` - Core hook
 - [ ] `useBalances` - Balance fetching hook
 - [ ] `useQuote` - Quote fetching hook
-- [ ] `useDrain` - Drain execution hook
+- [ ] `useSweep` - Sweep execution hook
 - [ ] `BalanceList` - Display component
-- [ ] `DrainButton` - Action component
-- [ ] `DrainStatus` - Status display component
+- [ ] `SweepButton` - Action component
+- [ ] `SweepStatus` - Status display component
 - [ ] CSS variable theming system
 
 **Component API:**
@@ -735,12 +735,12 @@ zerodust.onDrainStatus(drain.drainId, (status) => {
 import {
   ZeroDustProvider,
   BalanceList,
-  DrainButton,
-  DrainStatus,
+  SweepButton,
+  SweepStatus,
   useZeroDust,
   useBalances,
   useQuote,
-  useDrain,
+  useSweep,
 } from '@zerodust/react';
 
 // Provider wraps app
@@ -753,19 +753,19 @@ import {
 
 // Pre-built components
 <BalanceList address={userAddress} />
-<DrainButton
+<SweepButton
   fromChainId={42161}
   toChainId={8453}
-  onSuccess={(drain) => {}}
+  onSuccess={(sweep) => {}}
   onError={(error) => {}}
 />
-<DrainStatus drainId={drainId} />
+<SweepStatus sweepId={sweepId} />
 
 // Hooks for custom UI
 const { chains, isLoading } = useZeroDust();
 const { balances, refetch } = useBalances(address);
 const { quote, isLoading, error } = useQuote(params);
-const { execute, status, txHash } = useDrain();
+const { execute, status, txHash } = useSweep();
 ```
 
 **Theming System:**
@@ -882,14 +882,14 @@ frontend/
 │   ├── app/
 │   │   ├── layout.tsx
 │   │   ├── page.tsx
-│   │   ├── drain/
+│   │   ├── sweep/
 │   │   │   └── [id]/
 │   │   │       └── page.tsx
 │   │   └── api/
 │   ├── components/
 │   │   ├── ui/
 │   │   ├── wallet/
-│   │   └── drain/
+│   │   └── sweep/
 │   ├── hooks/
 │   ├── lib/
 │   │   ├── wagmi.ts
@@ -925,7 +925,7 @@ frontend/
 
 ---
 
-### M4.3: Drain Flow UI
+### M4.3: Sweep Flow UI
 
 **Deliverables:**
 - [ ] Chain selector (From)
@@ -934,7 +934,7 @@ frontend/
 - [ ] Destination address input
 - [ ] Fee breakdown display
 - [ ] Quote refresh countdown
-- [ ] Drain confirmation modal
+- [ ] Sweep confirmation modal
 - [ ] Signature request handling
 
 **UI Flow:**
@@ -971,7 +971,7 @@ frontend/
 │  Quote expires in 0:47                  │
 │                                         │
 │  ┌─────────────────────────────────┐   │
-│  │           Drain Now              │   │
+│  │           Sweep Now              │   │
 │  └─────────────────────────────────┘   │
 │                                         │
 └─────────────────────────────────────────┘
@@ -984,14 +984,14 @@ frontend/
 - Destination empty for same-chain
 - Fee breakdown shows all components
 - Quote countdown updates in real-time
-- Drain button triggers signature request
+- Sweep button triggers signature request
 
 ---
 
 ### M4.4: Transaction Status
 
 **Deliverables:**
-- [ ] Status page (/drain/[id])
+- [ ] Status page (/sweep/[id])
 - [ ] Real-time status updates (WebSocket)
 - [ ] Progress indicator
 - [ ] Transaction links (explorer)
@@ -1000,7 +1000,7 @@ frontend/
 
 **Status States:**
 ```
-pending    → "Preparing your drain..."
+pending    → "Preparing your sweep..."
 simulating → "Simulating transaction..."
 executing  → "Executing on [Chain]..." + tx link
 bridging   → "Bridging to [Chain]..." + bridge tx link
@@ -1066,8 +1066,8 @@ failed     → "Failed: [error message]" + retry option
 **Error States:**
 ```
 No wallet      → "Connect wallet to continue"
-No balance     → "No drainable balance found"
-Below minimum  → "Balance too low to drain (minimum: X)"
+No balance     → "No sweepable balance found"
+Below minimum  → "Balance too low to sweep (minimum: X)"
 Network error  → "Network error. Please try again."
 Quote expired  → "Quote expired. Getting new quote..."
 Sig rejected   → "Signature cancelled"
@@ -1088,7 +1088,7 @@ Tx failed      → "Transaction failed: [user-friendly message]"
 **Deliverables:**
 - [ ] E2E test suite (Playwright or Cypress)
 - [ ] Wallet connection tests (with mock)
-- [ ] Full drain flow tests
+- [ ] Full sweep flow tests
 - [ ] Error scenario tests
 - [ ] Mobile viewport tests
 
@@ -1096,10 +1096,10 @@ Tx failed      → "Transaction failed: [user-friendly message]"
 ```
 - Connect wallet
 - View balances across chains
-- Create quote for same-chain drain
-- Create quote for cross-chain drain
-- Execute drain (signature + confirmation)
-- Track drain status
+- Create quote for same-chain sweep
+- Create quote for cross-chain sweep
+- Execute sweep (signature + confirmation)
+- Track sweep status
 - Handle expired quote
 - Handle network errors
 - Disconnect wallet
@@ -1219,7 +1219,7 @@ Week 4: Bug fixes and polish
 ```
 
 **Acceptance Criteria:**
-- Real users complete drains
+- Real users complete sweeps
 - Critical bugs fixed
 - UX feedback incorporated
 
@@ -1308,7 +1308,7 @@ Infrastructure:
 
 Post-deployment:
 [ ] Smoke test on each chain
-[ ] Execute test drains
+[ ] Execute test sweeps
 [ ] Verify monitoring
 [ ] Document deployed addresses
 ```
@@ -1316,7 +1316,7 @@ Post-deployment:
 **Acceptance Criteria:**
 - All chains deployed
 - All services healthy
-- Test drains successful
+- Test sweeps successful
 
 ---
 
@@ -1385,11 +1385,11 @@ M4 (Frontend) ─────────────► M5 (Testing) ─► M6 
 |-----------|---------------------|
 | M0 | Clean repo, all tools working |
 | M1 | Contract deployed to testnet, tests passing |
-| M2 | API functional, drains execute on testnet |
+| M2 | API functional, sweeps execute on testnet |
 | M3 | SDK published, documentation complete |
 | M4 | Website live on testnet, full flow works |
 | M5 | All tests passing, beta feedback positive |
-| M6 | Audit passed, mainnet live, drains working |
+| M6 | Audit passed, mainnet live, sweeps working |
 
 ---
 
