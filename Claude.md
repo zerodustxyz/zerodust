@@ -42,6 +42,93 @@ These properties must NEVER be violated:
 
 ---
 
+## ⚠️ CRITICAL: Project Status & Chain-Specific Notes
+
+### Milestone Status (Updated: January 2026)
+
+| Milestone | Status | Notes |
+|-----------|--------|-------|
+| **M1: Smart Contract** | ✅ COMPLETE | Deployed & E2E verified on all 8 testnets |
+| M2: Backend/Relayer | 🔜 Next | Ready to start |
+| M3: SDK | ⏳ Pending | Depends on M2 |
+| M4: Frontend | ⏳ Pending | Depends on M3 |
+| M5: Testing & QA | ⏳ Pending | |
+| M6: Audit & Launch | ⏳ Pending | |
+
+### Contract Deployment (Deterministic Address via CREATE2)
+
+**Address: `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC`** (same on all chains)
+
+| Chain | Chain ID | E2E Verified | Explorer |
+|-------|----------|--------------|----------|
+| Sepolia | 11155111 | ✅ | [View](https://sepolia.etherscan.io/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Base Sepolia | 84532 | ✅ | [View](https://sepolia.basescan.org/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Arbitrum Sepolia | 421614 | ✅ | [View](https://sepolia.arbiscan.io/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Optimism Sepolia | 11155420 | ✅ | [View](https://sepolia-optimism.etherscan.io/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| BSC Testnet | 97 | ✅ | [View](https://testnet.bscscan.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Polygon Amoy | 80002 | ✅ | [View](https://amoy.polygonscan.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Gnosis Chiado | 10200 | ✅ | [View](https://gnosis-chiado.blockscout.com/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+| Unichain Sepolia | 1301 | ✅ | [View](https://sepolia.uniscan.xyz/address/0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC) |
+
+### 🚨 BSC Chain-Specific Requirements
+
+**BSC (BNB Chain) requires different tooling for EIP-7702 transactions:**
+
+**Problem:** Foundry's `cast` and `forge script --broadcast` cannot properly construct EIP-7702 (type 4) transactions on BSC because BSC has `baseFeePerGas: 0`, which causes cast to fail with:
+```
+Error: local usage error: missing properties: [("Wallet", ["max_fee_per_gas", "max_priority_fee_per_gas"])]
+```
+
+**Solution:** Use `viem` (JavaScript/TypeScript) instead of Foundry tools for BSC EIP-7702 transactions.
+
+**Implementation:**
+- For testing: Use `contracts/script/bsc-e2e-test.mjs` (viem-based)
+- For backend relayer (M2): Must use `viem` or `ethers.js` for BSC chain, NOT Foundry
+
+**Code example (viem):**
+```typescript
+import { createWalletClient } from 'viem';
+
+// Sign EIP-7702 authorization
+const authorization = await walletClient.signAuthorization({
+    account: userAccount,
+    contractAddress: SWEEP_CONTRACT,
+});
+
+// Send with explicit gas params (required for BSC)
+const tx = await walletClient.sendTransaction({
+    to: userAccount.address,
+    data: calldata,
+    authorizationList: [authorization],
+    gas: 200000n,
+    maxFeePerGas: 3000000000n,      // 3 gwei
+    maxPriorityFeePerGas: 3000000000n // 3 gwei
+});
+```
+
+**Files:**
+- `contracts/script/bsc-e2e-test.mjs` - Working BSC E2E test with viem
+- `contracts/script/e2e-test.sh` - Works for all chains EXCEPT BSC
+- `contracts/script/e2e-all-chains.sh` - Multi-chain runner (BSC will show TX_FAILED)
+
+### E2E Test Scripts
+
+| Script | Purpose | Chains |
+|--------|---------|--------|
+| `script/e2e-test.sh` | Single chain E2E test (cast) | All except BSC |
+| `script/e2e-all-chains.sh` | Multi-chain test runner | All except BSC |
+| `script/bsc-e2e-test.mjs` | BSC E2E test (viem) | BSC only |
+
+### Test Results Summary
+
+All 8 testnets have verified E2E sweep transactions where user balance goes to exactly **0**:
+- Contract correctly verifies EIP-712 signatures
+- EIP-7702 delegation works on all chains
+- Relayer compensation is correctly deducted
+- Remainder is sent to destination
+
+---
+
 ## Development Philosophy
 
 ### Security-First Mindset

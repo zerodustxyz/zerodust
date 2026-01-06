@@ -55,54 +55,59 @@ zerodust/
 
 ---
 
-## Milestone 1: Smart Contract Development
+## Milestone 1: Smart Contract Development ✅ COMPLETE
 
-### M1.1: Core Contract Implementation
+> **Status: COMPLETE** (January 2026)
+> - Contract deployed to all 8 testnets at deterministic address
+> - E2E verified with real EIP-7702 transactions on all chains
+> - 100% test coverage achieved
+
+### M1.1: Core Contract Implementation ✅
 
 **Deliverables:**
-- [ ] `ZeroDustSweep.sol` - Main sweep contract
-- [ ] `IZeroDustSweep.sol` - Interface definition
-- [ ] EIP-712 typed data structure for authorization signing
-- [ ] Nonce management (sequential per-user)
-- [ ] Deadline enforcement
-- [ ] Compensation calculation and transfer logic
+- [x] `ZeroDustSweep.sol` - Main sweep contract
+- [x] ~~`IZeroDustSweep.sol` - Interface definition~~ (embedded in contract)
+- [x] EIP-712 typed data structure for authorization signing
+- [x] Nonce management (sequential per-user)
+- [x] Deadline enforcement
+- [x] Compensation calculation and transfer logic
 
 **Acceptance Criteria:**
-- Contract compiles without warnings
-- All functions match the interface specification
-- No external dependencies beyond OpenZeppelin (if needed)
-- Gas usage documented for all external functions
+- ✅ Contract compiles without warnings
+- ✅ All functions match the interface specification
+- ✅ No external dependencies (pure Solidity 0.8.28)
+- ✅ Gas usage documented for all external functions
 
 **Security Requirements:**
-- Checks-effects-interactions pattern enforced
-- No reentrancy vulnerabilities
-- No integer overflow (Solidity 0.8+ native)
-- All state changes emit events
+- ✅ Checks-effects-interactions pattern enforced
+- ✅ No reentrancy vulnerabilities
+- ✅ No integer overflow (Solidity 0.8+ native)
+- ✅ All state changes emit events
 
 ---
 
-### M1.2: Contract Test Suite
+### M1.2: Contract Test Suite ✅
 
 **Deliverables:**
-- [ ] Unit tests for all public functions
-- [ ] Unit tests for all revert conditions
-- [ ] Fuzz tests for authorization validation
-- [ ] Fuzz tests for compensation calculations
-- [ ] Integration tests simulating full sweep flow
-- [ ] Gas snapshot tests
+- [x] Unit tests for all public functions
+- [x] Unit tests for all revert conditions
+- [x] Fuzz tests for authorization validation
+- [x] Fuzz tests for compensation calculations
+- [x] Integration tests simulating full sweep flow
+- [x] Gas snapshot tests
 
-**Test Coverage Targets:**
-| Category | Target |
-|----------|--------|
-| Line coverage | > 95% |
-| Branch coverage | > 90% |
-| Function coverage | 100% |
+**Test Coverage Achieved:**
+| Category | Target | Actual |
+|----------|--------|--------|
+| Line coverage | > 95% | **100%** |
+| Branch coverage | > 90% | **100%** |
+| Function coverage | 100% | **100%** |
 
 **Acceptance Criteria:**
-- All tests pass
-- Coverage targets met
-- Fuzz tests run with minimum 10,000 iterations
-- No test flakiness
+- ✅ All 32 tests pass
+- ✅ Coverage targets exceeded (100% across all metrics)
+- ✅ Fuzz tests run with 10,000 iterations
+- ✅ No test flakiness
 
 **Test Scenarios:**
 ```
@@ -134,50 +139,65 @@ Integration Tests:
 
 ---
 
-### M1.3: Deployment Infrastructure
+### M1.3: Deployment Infrastructure ✅
 
 **Deliverables:**
-- [ ] CREATE2 factory contract (or use existing like Arachnid's)
-- [ ] Deployment script with deterministic addresses
-- [ ] Multi-chain deployment script
-- [ ] Contract verification script (Etherscan, Blockscout)
-- [ ] Deployed address registry (JSON)
+- [x] CREATE2 factory contract (using Arachnid's 0x4e59b44847b379578588920cA78FbF26c0B4956C)
+- [x] Deployment script with deterministic addresses
+- [x] Multi-chain deployment script
+- [x] Contract verification script (Etherscan, Blockscout)
+- [x] Deployed address registry (broadcast/*.json)
 
 **Acceptance Criteria:**
-- Same contract address on all chains
-- All deployments verified on block explorers
-- Deployment can be reproduced from clean state
+- ✅ Same contract address on all chains: `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC`
+- ✅ All deployments verified on block explorers
+- ✅ Deployment can be reproduced from clean state
 
 **Deployment Checklist:**
 ```
 For each chain:
-[ ] Deploy via CREATE2
-[ ] Verify on block explorer
-[ ] Test executeSweep with test wallet
-[ ] Record address in registry
-[ ] Confirm deterministic address matches
+[x] Deploy via CREATE2
+[x] Verify on block explorer
+[x] Test executeSweep with test wallet (E2E)
+[x] Record address in registry
+[x] Confirm deterministic address matches
 ```
 
 ---
 
-### M1.4: Testnet Deployment
+### M1.4: Testnet Deployment ✅
 
 **Deliverables:**
-- [ ] Contract deployed to Sepolia (Ethereum testnet)
-- [ ] Contract deployed to BSC Testnet
-- [ ] Contract deployed to Base Sepolia
-- [ ] Contract deployed to Optimism Sepolia
-- [ ] Contract deployed to Arbitrum Sepolia
-- [ ] Contract deployed to Unichain Sepolia
-- [ ] Contract deployed to Polygon Amoy
-- [ ] Contract deployed to Gnosis Chiado
-- [ ] Verified on all testnet explorers
-- [ ] Test transactions executed successfully on each chain
+- [x] Contract deployed to Sepolia (Ethereum testnet)
+- [x] Contract deployed to BSC Testnet
+- [x] Contract deployed to Base Sepolia
+- [x] Contract deployed to Optimism Sepolia
+- [x] Contract deployed to Arbitrum Sepolia
+- [x] Contract deployed to Unichain Sepolia
+- [x] Contract deployed to Polygon Amoy
+- [x] Contract deployed to Gnosis Chiado
+- [x] Verified on all testnet explorers
+- [x] E2E sweep transactions executed successfully on ALL 8 chains
+
+**E2E Test Results (Real EIP-7702 Transactions):**
+| Chain | TX Hash |
+|-------|---------|
+| Sepolia | [`0xef4963e2...`](https://sepolia.etherscan.io/tx/0xef4963e277a3085eb5569437da27dd8728f1967dc589b93d6215795c081b404a) |
+| Base Sepolia | [`0x79dbb758...`](https://sepolia.basescan.org/tx/0x79dbb7583ce44989ce7d447fec3254a8248cf33b009152d7493b353589cb51ef) |
+| Arbitrum Sepolia | [`0x11a1ddc8...`](https://sepolia.arbiscan.io/tx/0x11a1ddc8277910a3860b8f356fa1ef8641aca1e0fc4ec3b0aa45a04d2f8feb37) |
+| Optimism Sepolia | [`0x1ff5305f...`](https://sepolia-optimism.etherscan.io/tx/0x1ff5305f0026ab571e7fb306cd906eb5896dc039c7b5e14601ee3937d1c2cdc2) |
+| Polygon Amoy | [`0x6f4c29ff...`](https://amoy.polygonscan.com/tx/0x6f4c29fffa82e9c62578f7ff3d019b2cae740ee611c5397a2cf99a2e506d241d) |
+| Gnosis Chiado | [`0xa111d3e6...`](https://gnosis-chiado.blockscout.com/tx/0xa111d3e627c86eda2c6e36cb5839e14e1590adcebcab07a84dad132028b41fcf) |
+| Unichain Sepolia | [`0xc8ce1ad6...`](https://sepolia.uniscan.xyz/tx/0xc8ce1ad62823bb6644e61dda45167632e8a8a89f77f2bb9cb2239a1959f0b8ab) |
+| BSC Testnet | [`0x3c64ba11...`](https://testnet.bscscan.com/tx/0x3c64ba11104017758e18448c661ffe0f714f022da48d2b857ae0b207be81667b) |
 
 **Acceptance Criteria:**
-- All testnet deployments at same deterministic address (CREATE2)
-- At least one successful sweep transaction per testnet
-- ABI exported and documented
+- ✅ All testnet deployments at same deterministic address (CREATE2)
+- ✅ Successful E2E sweep transaction on ALL 8 testnets
+- ✅ User balance goes to exactly ZERO on all chains
+- ✅ ABI exported in out/ directory
+
+**Note:** BSC requires viem for EIP-7702 transactions (see CLAUDE.md)
 
 ---
 

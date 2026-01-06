@@ -81,4 +81,32 @@ MIT License - see [LICENSE](./LICENSE)
 
 ## Status
 
-**In Development** - Not yet ready for production use.
+**Milestone 1: Smart Contract - COMPLETE** ✅
+
+| Milestone | Status |
+|-----------|--------|
+| M1: Smart Contract | ✅ Complete |
+| M2: Backend/Relayer | 🔜 Next |
+| M3: SDK | ⏳ Pending |
+| M4: Frontend | ⏳ Pending |
+| M5: Testing & QA | ⏳ Pending |
+| M6: Audit & Launch | ⏳ Pending |
+
+### Testnet Deployments
+
+Contract deployed and E2E verified on all 8 testnets:
+
+**Contract Address:** `0x05a94F2479eE0Fa99f1790e1cB0A8d326263f6eC` (same on all chains)
+
+| Chain | Verified | E2E Tested |
+|-------|----------|------------|
+| Sepolia | ✅ | ✅ |
+| Base Sepolia | ✅ | ✅ |
+| Arbitrum Sepolia | ✅ | ✅ |
+| Optimism Sepolia | ✅ | ✅ |
+| BSC Testnet | ✅ | ✅ |
+| Polygon Amoy | ✅ | ✅ |
+| Gnosis Chiado | ✅ | ✅ |
+| Unichain Sepolia | ✅ | ✅ |
+
+**Not yet ready for production use.**
