@@ -616,9 +616,86 @@ contract ZeroDustSweepTest is Test {
         assertEq(user.balance, 0);
         assertEq(contractDest.balance, 0.99 ether);
     }
+
+    // ============ Transfer Failure Tests ============
+
+    function test_executeSweep_reverts_relayerTransferFails() public {
+        ZeroDustSweep userSweep = _delegateToSweep();
+
+        // Create a contract that rejects ETH as the relayer
+        EtherRejecter rejecterRelayer = new EtherRejecter();
+
+        ZeroDustSweep.SweepAuthorization memory auth =
+            _createAuthorization(user, destination, 0.01 ether, block.timestamp + 1 hours, 0);
+        bytes memory signature = _signAuthorization(auth, userPrivateKey);
+
+        vm.prank(address(rejecterRelayer));
+        vm.expectRevert(ZeroDustSweep.TransferFailed.selector);
+        userSweep.executeSweep(auth, signature);
+    }
+
+    function test_executeSweep_reverts_destinationTransferFails() public {
+        ZeroDustSweep userSweep = _delegateToSweep();
+
+        // Create a contract that rejects ETH as the destination
+        EtherRejecter rejecterDest = new EtherRejecter();
+
+        ZeroDustSweep.SweepAuthorization memory auth =
+            _createAuthorization(user, address(rejecterDest), 0.01 ether, block.timestamp + 1 hours, 0);
+        bytes memory signature = _signAuthorization(auth, userPrivateKey);
+
+        vm.prank(relayer);
+        vm.expectRevert(ZeroDustSweep.TransferFailed.selector);
+        userSweep.executeSweep(auth, signature);
+    }
+
+    // ============ Legacy Signature Tests ============
+
+    function test_executeSweep_withLegacyVValue() public {
+        ZeroDustSweep userSweep = _delegateToSweep();
+
+        ZeroDustSweep.SweepAuthorization memory auth =
+            _createAuthorization(user, destination, 0.01 ether, block.timestamp + 1 hours, 0);
+
+        // Create signature with legacy v value (0 or 1 instead of 27 or 28)
+        bytes memory signature = _signAuthorizationWithLegacyV(auth, userPrivateKey);
+
+        vm.prank(relayer);
+        userSweep.executeSweep(auth, signature);
+
+        assertEq(user.balance, 0);
+    }
+
+    function _signAuthorizationWithLegacyV(
+        ZeroDustSweep.SweepAuthorization memory auth,
+        uint256 privateKey
+    ) internal view returns (bytes memory) {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                SWEEP_AUTHORIZATION_TYPEHASH,
+                auth.user,
+                auth.destination,
+                auth.maxRelayerCompensation,
+                auth.deadline,
+                auth.nonce
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", sweepImplementation.DOMAIN_SEPARATOR(), structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+
+        // Convert to legacy v (0 or 1)
+        uint8 legacyV = v - 27;
+
+        return abi.encodePacked(r, s, legacyV);
+    }
 }
 
 /// @notice Helper contract that can receive ETH
 contract EtherReceiver {
     receive() external payable { }
+}
+
+/// @notice Helper contract that rejects ETH transfers
+contract EtherRejecter {
+    // No receive or fallback function, so ETH transfers will fail
 }
