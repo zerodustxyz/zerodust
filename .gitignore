@@ -137,3 +137,49 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# ===================
+# Foundry (Solidity)
+# ===================
+cache/
+out/
+broadcast/
+!broadcast/**/run-latest.json
+
+# ===================
+# Security Critical
+# ===================
+# Private keys and keystores
+*.pem
+*.key
+*.p12
+keystore/
+.secret
+mnemonic.txt
+private-key.txt
+
+# Deployment secrets
+.env.production
+.env.mainnet
+.env.*.local
+
+# ===================
+# IDE & Editor
+# ===================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ===================
+# OS Files
+# ===================
+.DS_Store
+Thumbs.db
+
+# ===================
+# Testing
+# ===================
+.vercel
+.turbo
